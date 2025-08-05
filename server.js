@@ -6,12 +6,17 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import http from 'http'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 
 // Import services after dotenv is configured
 import { productService } from './services/product.service.js'
 import { userService } from './services/user.service.js'
 import { authMiddleware } from './middleware/auth.middleware.js'
+
+// ES Module compatibility
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const app = express()
 const server = http.createServer(app)
@@ -258,7 +263,7 @@ if (!isProduction) {
   }))
 } else {
   // Catch-all for SPA routing (only in production)
-  app.get('/*', (req, res) => {
+  app.get('/:wildcard*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'))
   })
 }
