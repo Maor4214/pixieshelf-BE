@@ -55,6 +55,11 @@ async function add(product) {
     product.sku = await generateNextSKU()
   }
   
+  // Set creation date for new products
+  product.createdAt = new Date()
+  product.marketDate = new Date()
+  product.isEdited = false
+  
   const res = await collection.insertOne(product)
   product._id = res.insertedId
   return product
@@ -64,6 +69,11 @@ async function update(productId, product) {
   const collection = await dbService.getCollection('products')
   const id = new ObjectId(productId)
   delete product._id
+  
+  // Set marketDate to current date when editing and mark as edited
+  product.marketDate = new Date()
+  product.isEdited = true
+  
   await collection.updateOne({ _id: id }, { $set: product })
   product._id = id
   return product

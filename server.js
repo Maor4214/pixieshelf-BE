@@ -10,6 +10,8 @@ import { createProxyMiddleware } from 'http-proxy-middleware'
 
 // Import services after dotenv is configured
 import { productService } from './services/product.service.js'
+import { userService } from './services/user.service.js'
+import { authMiddleware } from './middleware/auth.middleware.js'
 
 const app = express()
 const server = http.createServer(app)
@@ -34,26 +36,91 @@ if (!isProduction) {
   app.use(express.static(path.resolve('public')))
 }
 
-
-
 // Auth Routes 
-app.post('/api/auth/login', (req, res) => {
-  const { username } = req.body
-  if (!username) return res.status(400).send('Missing username')
-  res.send({ _id: 'u1', username, fullname: 'Test User' })
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing email or password' })
+    }
+    
+    // Find user by email
+    const user = await userService.getByEmail(email)
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' })
+    }
+    
+    // Verify password
+    const bcrypt = await import('bcrypt')
+    const isValidPassword = await bcrypt.compare(password, user.password)
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid email or password' })
+    }
+    
+    // Generate token
+    const token = authMiddleware.generateToken(user._id.toString())
+    
+    // Set token in cookie
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    })
+    
+    // Don't send password in response
+    const { password: _, ...userWithoutPassword } = user
+    res.json({ user: userWithoutPassword, token })
+  } catch (err) {
+    res.status(500).json({ error: 'Login failed' })
+  }
 })
 
-app.post('/api/auth/signup', (req, res) => {
-  const { username, fullname } = req.body
-  if (!username || !fullname) return res.status(400).send('Missing fields')
-  res.send({ _id: 'u2', username, fullname })
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, userType = 'regular' } = req.body
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing email or password' })
+    }
+    
+    const newUser = await userService.add({ email, password, userType })
+    
+    // Generate token for new user
+    const token = authMiddleware.generateToken(newUser._id.toString())
+    
+    // Set token in cookie
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    })
+    
+    res.status(201).json({ user: newUser, token })
+  } catch (err) {
+    if (err.message === 'User with this email already exists') {
+      res.status(409).json({ error: err.message })
+    } else {
+      res.status(500).json({ error: 'Signup failed' })
+    }
+  }
 })
 
 app.post('/api/auth/logout', (req, res) => {
-  res.send('Logged out')
+  const token = req.cookies?.authToken || req.headers.authorization?.replace('Bearer ', '')
+  
+  if (token) {
+    authMiddleware.removeToken(token)
+  }
+  
+  res.clearCookie('authToken')
+  res.json({ message: 'Logged out successfully' })
 })
 
-// Product Routes
+// Product Routes - Public read access, protected write access
 app.get('/api/product', async (req, res) => {
   try {
     const products = await productService.query()
@@ -63,7 +130,7 @@ app.get('/api/product', async (req, res) => {
   }
 })
 
-app.get('/api/product/next-sku', async (req, res) => {
+app.get('/api/product/next-sku', authMiddleware.requireMember, async (req, res) => {
   try {
     const nextSKU = await productService.generateNextSKU()
     res.send({ nextSKU })
@@ -82,7 +149,7 @@ app.get('/api/product/:id', async (req, res) => {
   }
 })
 
-app.post('/api/product', async (req, res) => {
+app.post('/api/product', authMiddleware.requireMember, async (req, res) => {
   try {
     const newProduct = await productService.add(req.body)
     res.status(201).send(newProduct)
@@ -91,7 +158,7 @@ app.post('/api/product', async (req, res) => {
   }
 })
 
-app.put('/api/product/:id', async (req, res) => {
+app.put('/api/product/:id', authMiddleware.requireMember, async (req, res) => {
   try {
     const updatedProduct = await productService.update(req.params.id, req.body)
     res.send(updatedProduct)
@@ -100,12 +167,80 @@ app.put('/api/product/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/product/:id', async (req, res) => {
+app.delete('/api/product/:id', authMiddleware.requireMember, async (req, res) => {
   try {
     await productService.remove(req.params.id)
     res.send('Product deleted')
   } catch (err) {
     res.status(500).send('Failed to delete product')
+  }
+})
+
+// User Routes - Admin only
+app.post('/api/user', authMiddleware.requireAdmin, async (req, res) => {
+  try {
+    console.log('📝 Creating user with data:', req.body)
+    
+    const { email, password, userType } = req.body
+    
+    if (!email || !password || !userType) {
+      console.log('❌ Missing required fields')
+      return res.status(400).json({ error: 'Missing required fields: email, password, userType' })
+    }
+    
+    if (!['admin', 'regular'].includes(userType)) {
+      console.log('❌ Invalid user type:', userType)
+      return res.status(400).json({ error: 'Invalid user type. Must be "admin" or "regular"' })
+    }
+    
+    console.log('✅ Validating user data...')
+    const newUser = await userService.add({ email, password, userType })
+    console.log('✅ User created successfully:', newUser.email)
+    res.status(201).send(newUser)
+  } catch (err) {
+    console.error('❌ Error creating user:', err)
+    if (err.message === 'User with this email already exists') {
+      res.status(409).json({ error: err.message })
+    } else {
+      res.status(500).json({ error: 'Failed to create user: ' + err.message })
+    }
+  }
+})
+
+app.get('/api/user', authMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const users = await userService.query()
+    res.send(users)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get users' })
+  }
+})
+
+app.get('/api/user/:id', authMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const user = await userService.getById(req.params.id)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    res.send(user)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get user' })
+  }
+})
+
+app.put('/api/user/:id', authMiddleware.requireAdmin, async (req, res) => {
+  try {
+    const updatedUser = await userService.update(req.params.id, req.body)
+    res.send(updatedUser)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update user' })
+  }
+})
+
+app.delete('/api/user/:id', authMiddleware.requireAdmin, async (req, res) => {
+  try {
+    await userService.remove(req.params.id)
+    res.send('User deleted')
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete user' })
   }
 })
 

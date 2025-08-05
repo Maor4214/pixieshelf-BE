@@ -29,7 +29,6 @@ The frontend should be running on `http://localhost:5173`
 
 - **API Routes** (`/api/*`): Handled directly by the backend
 - **All Other Routes** (`/`, `/home`, `/products`, etc.): Proxied to the Vite dev server
-- **WebSocket Connections**: Proxied for Hot Module Replacement (HMR)
 
 ## Development Workflow
 
