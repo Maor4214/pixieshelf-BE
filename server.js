@@ -33,7 +33,7 @@ if (!isProduction) {
   }
   app.use(cors(corsOptions))
 } else {
-  app.use(express.static(path.resolve('public')))
+  app.use(express.static(path.join(__dirname, 'public')))
 }
 
 // Auth Routes 
@@ -259,7 +259,7 @@ if (!isProduction) {
 } else {
   // Catch-all for SPA routing (only in production)
   app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../pixieshelf FE/dist/index.html'))
+    res.sendFile(path.join(__dirname, 'public', 'index.html'))
   })
 }
 
