@@ -6,12 +6,10 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import http from 'http'
 import path from 'path'
+import { createProxyMiddleware } from 'http-proxy-middleware'
 
 // Import services after dotenv is configured
 import { productService } from './services/product.service.js'
-
-// Debug: Check environment variables after dotenv config
-console.log('DEBUG: After dotenv - MONGO_URL =', process.env.MONGO_URL)
 
 const app = express()
 const server = http.createServer(app)
@@ -65,6 +63,15 @@ app.get('/api/product', async (req, res) => {
   }
 })
 
+app.get('/api/product/next-sku', async (req, res) => {
+  try {
+    const nextSKU = await productService.generateNextSKU()
+    res.send({ nextSKU })
+  } catch (err) {
+    res.status(500).send('Failed to generate next SKU')
+  }
+})
+
 app.get('/api/product/:id', async (req, res) => {
   try {
     const product = await productService.getById(req.params.id)
@@ -107,15 +114,38 @@ app.get('/api', (req, res) => {
   res.send('Welcome to the Product Management API!')
 })
 
-// Catch-all for SPA routing (only in production)
-if (isProduction) {
+// Proxy configuration for development
+if (!isProduction) {
+  // Proxy all non-API routes to Vite dev server
+  app.use('/', createProxyMiddleware({
+    target: 'http://localhost:5173',
+    changeOrigin: true,
+    ws: true, // Enable WebSocket proxy for HMR
+    logLevel: 'debug',
+    onProxyReq: (proxyReq, req, res) => {
+      // Skip API routes
+      if (req.url.startsWith('/api')) {
+        return
+      }
+      console.log(`🔄 Proxying ${req.method} ${req.url} to Vite dev server`)
+    },
+    onError: (err, req, res) => {
+      console.error('❌ Proxy error:', err.message)
+      res.status(500).send('Proxy error: Vite dev server might not be running')
+    }
+  }))
+} else {
+  // Catch-all for SPA routing (only in production)
   app.get('/*', (req, res) => {
     res.sendFile(path.resolve('public/index.html'))
   })
 }
 
 // Start server
-const port = process.env.PORT || 3032
+const port = process.env.PORT || 3035
 server.listen(port, () => {
   console.log(`✅ Server is running on http://localhost:${port}/`)
+  if (!isProduction) {
+    console.log(`🔄 Proxy configured to forward non-API routes to Vite dev server (http://localhost:5173)`)
+  }
 })
