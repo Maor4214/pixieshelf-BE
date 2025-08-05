@@ -41,40 +41,40 @@ if (!isProduction) {
   app.use(express.static(path.join(__dirname, 'public')))
 }
 
-// Auth Routes 
+// Auth Routes
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body
-    
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Missing email or password' })
     }
-    
+
     // Find user by email
     const user = await userService.getByEmail(email)
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' })
     }
-    
+
     // Verify password
     const bcrypt = await import('bcrypt')
     const isValidPassword = await bcrypt.compare(password, user.password)
-    
+
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid email or password' })
     }
-    
+
     // Generate token
     const token = authMiddleware.generateToken(user._id.toString())
-    
+
     // Set token in cookie
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     })
-    
+
     // Don't send password in response
     const { password: _, ...userWithoutPassword } = user
     res.json({ user: userWithoutPassword, token })
@@ -86,24 +86,24 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
   try {
     const { email, password, userType = 'regular' } = req.body
-    
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Missing email or password' })
     }
-    
+
     const newUser = await userService.add({ email, password, userType })
-    
+
     // Generate token for new user
     const token = authMiddleware.generateToken(newUser._id.toString())
-    
+
     // Set token in cookie
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     })
-    
+
     res.status(201).json({ user: newUser, token })
   } catch (err) {
     if (err.message === 'User with this email already exists') {
@@ -115,12 +115,13 @@ app.post('/api/auth/signup', async (req, res) => {
 })
 
 app.post('/api/auth/logout', (req, res) => {
-  const token = req.cookies?.authToken || req.headers.authorization?.replace('Bearer ', '')
-  
+  const token =
+    req.cookies?.authToken || req.headers.authorization?.replace('Bearer ', '')
+
   if (token) {
     authMiddleware.removeToken(token)
   }
-  
+
   res.clearCookie('authToken')
   res.json({ message: 'Logged out successfully' })
 })
@@ -135,14 +136,18 @@ app.get('/api/product', async (req, res) => {
   }
 })
 
-app.get('/api/product/next-sku', authMiddleware.requireMember, async (req, res) => {
-  try {
-    const nextSKU = await productService.generateNextSKU()
-    res.send({ nextSKU })
-  } catch (err) {
-    res.status(500).send('Failed to generate next SKU')
+app.get(
+  '/api/product/next-sku',
+  authMiddleware.requireMember,
+  async (req, res) => {
+    try {
+      const nextSKU = await productService.generateNextSKU()
+      res.send({ nextSKU })
+    } catch (err) {
+      res.status(500).send('Failed to generate next SKU')
+    }
   }
-})
+)
 
 app.get('/api/product/:id', async (req, res) => {
   try {
@@ -172,28 +177,36 @@ app.put('/api/product/:id', authMiddleware.requireMember, async (req, res) => {
   }
 })
 
-app.delete('/api/product/:id', authMiddleware.requireMember, async (req, res) => {
-  try {
-    await productService.remove(req.params.id)
-    res.send('Product deleted')
-  } catch (err) {
-    res.status(500).send('Failed to delete product')
+app.delete(
+  '/api/product/:id',
+  authMiddleware.requireMember,
+  async (req, res) => {
+    try {
+      await productService.remove(req.params.id)
+      res.send('Product deleted')
+    } catch (err) {
+      res.status(500).send('Failed to delete product')
+    }
   }
-})
+)
 
 // User Routes - Admin only
 app.post('/api/user', authMiddleware.requireAdmin, async (req, res) => {
   try {
     const { email, password, userType } = req.body
-    
+
     if (!email || !password || !userType) {
-      return res.status(400).json({ error: 'Missing required fields: email, password, userType' })
+      return res
+        .status(400)
+        .json({ error: 'Missing required fields: email, password, userType' })
     }
-    
+
     if (!['admin', 'regular'].includes(userType)) {
-      return res.status(400).json({ error: 'Invalid user type. Must be "admin" or "regular"' })
+      return res
+        .status(400)
+        .json({ error: 'Invalid user type. Must be "admin" or "regular"' })
     }
-    
+
     const newUser = await userService.add({ email, password, userType })
     res.status(201).send(newUser)
   } catch (err) {
@@ -251,16 +264,21 @@ app.get('/api', (req, res) => {
 // Proxy configuration for development
 if (!isProduction) {
   // Proxy all non-API routes to Vite dev server
-  app.use('/', createProxyMiddleware({
-    target: 'http://localhost:5173',
-    changeOrigin: true,
-    ws: true, // Enable WebSocket proxy for HMR
-    logLevel: 'debug',
-    onError: (err, req, res) => {
-      console.error('❌ Proxy error:', err.message)
-      res.status(500).send('Proxy error: Vite dev server might not be running')
-    }
-  }))
+  app.use(
+    '/',
+    createProxyMiddleware({
+      target: 'http://localhost:5173',
+      changeOrigin: true,
+      ws: true, // Enable WebSocket proxy for HMR
+      logLevel: 'debug',
+      onError: (err, req, res) => {
+        console.error('❌ Proxy error:', err.message)
+        res
+          .status(500)
+          .send('Proxy error: Vite dev server might not be running')
+      },
+    })
+  )
 } else {
   // Catch-all for SPA routing (only in production)
   app.get('/:wildcard*', (req, res) => {
@@ -268,11 +286,23 @@ if (!isProduction) {
   })
 }
 
+app._router.stack
+  .filter((r) => r.route)
+  .forEach((r) => {
+    console.log(
+      'Registered route:',
+      Object.keys(r.route.methods)[0].toUpperCase(),
+      r.route.path
+    )
+  })
+
 // Start server
 const port = process.env.PORT || 3035
 server.listen(port, () => {
   console.log(`✅ Server is running on http://localhost:${port}/`)
   if (!isProduction) {
-    console.log(`🔄 Proxy configured to forward non-API routes to Vite dev server (http://localhost:5173)`)
+    console.log(
+      `🔄 Proxy configured to forward non-API routes to Vite dev server (http://localhost:5173)`
+    )
   }
 })
