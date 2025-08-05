@@ -281,7 +281,7 @@ if (!isProduction) {
   )
 } else {
   // Catch-all for SPA routing (only in production)
-  app.get('/:wildcard*', (req, res) => {
+  app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'))
   })
 }
