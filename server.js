@@ -1,7 +1,5 @@
-// server.js (With Service Layer for Product Management)
-
 import dotenv from 'dotenv'
-dotenv.config()
+dotenv.config({ override: true })
 
 import express from 'express'
 import cors from 'cors'
@@ -9,8 +7,11 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import path from 'path'
 
-import { setupAsyncLocalStorage } from './middlewares/setupAls.middleware.js'
+// Import services after dotenv is configured
 import { productService } from './services/product.service.js'
+
+// Debug: Check environment variables after dotenv config
+console.log('DEBUG: After dotenv - MONGO_URL =', process.env.MONGO_URL)
 
 const app = express()
 const server = http.createServer(app)
@@ -35,8 +36,7 @@ if (!isProduction) {
   app.use(express.static(path.resolve('public')))
 }
 
-// ALS Middleware
-app.all('/*', setupAsyncLocalStorage)
+
 
 // Auth Routes 
 app.post('/api/auth/login', (req, res) => {
@@ -107,13 +107,15 @@ app.get('/api', (req, res) => {
   res.send('Welcome to the Product Management API!')
 })
 
-// Catch-all for SPA routing
-app.get('/*', (req, res) => {
-  res.sendFile(path.resolve('public/index.html'))
-})
+// Catch-all for SPA routing (only in production)
+if (isProduction) {
+  app.get('/*', (req, res) => {
+    res.sendFile(path.resolve('public/index.html'))
+  })
+}
 
 // Start server
-const port = process.env.PORT || 3031
+const port = process.env.PORT || 3032
 server.listen(port, () => {
   console.log(`✅ Server is running on http://localhost:${port}/`)
 })
