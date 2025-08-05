@@ -265,7 +265,7 @@ app.get('/api', (req, res) => {
 if (!isProduction) {
   // Proxy all non-API routes to Vite dev server
   app.use(
-    '/',
+    '*',
     createProxyMiddleware({
       target: 'http://localhost:5173',
       changeOrigin: true,
