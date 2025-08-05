@@ -19,7 +19,7 @@ Create a `.env` file in the backend root directory:
 ```bash
 # Database Configuration
 MONGO_URL=mongodb://localhost:27017/pixieshelf_db
-# or for MongoDB Atlas: MONGO_URL=mongodb+srv://username:password@cluster.mongodb.net/pixieshelf_db
+# Example for Atlas: mongodb+srv://<username>:<password>@<cluster-url>/<dbname>?retryWrites=true&w=majority
 
 # Server Configuration
 PORT=3031
