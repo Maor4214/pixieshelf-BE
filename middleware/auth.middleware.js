@@ -9,23 +9,18 @@ export const authMiddleware = {
   generateToken: (userId) => {
     const token = Math.random().toString(36).substring(2) + Date.now().toString(36)
     tokens.set(token, userId)
-    console.log(`🔑 Generated token for user ${userId}:`, token)
-    console.log(`📊 Current tokens in memory:`, tokens.size)
     return token
   },
 
   // Verify token and get user
   verifyToken: (token) => {
     const userId = tokens.get(token)
-    console.log(`🔍 Verifying token:`, token)
-    console.log(`👤 Found userId:`, userId)
     return userId
   },
 
   // Remove token on logout
   removeToken: (token) => {
     tokens.delete(token)
-    console.log(`🗑️ Removed token:`, token)
   },
 
   // Authentication middleware
@@ -33,11 +28,7 @@ export const authMiddleware = {
     const token = req.headers.authorization?.replace('Bearer ', '') || 
                   req.cookies?.authToken
 
-    console.log(`🔐 Auth check - Token:`, token)
-    console.log(`🔐 Auth check - Headers:`, req.headers.authorization)
-
     if (!token) {
-      console.log(`❌ No token provided`)
       return res.status(401).json({ 
         error: 'Authentication required',
         redirect: '/login'
@@ -46,14 +37,12 @@ export const authMiddleware = {
 
     const userId = authMiddleware.verifyToken(token)
     if (!userId) {
-      console.log(`❌ Invalid token:`, token)
       return res.status(401).json({ 
         error: 'Invalid or expired token',
         redirect: '/login'
       })
     }
 
-    console.log(`✅ Valid token for user:`, userId)
     req.userId = userId
     next()
   },
@@ -88,11 +77,7 @@ export const authMiddleware = {
       const token = req.headers.authorization?.replace('Bearer ', '') || 
                     req.cookies?.authToken
 
-      console.log(`👑 Admin check - Token:`, token)
-      console.log(`👑 Admin check - Headers:`, req.headers.authorization)
-
       if (!token) {
-        console.log(`❌ No token for admin check`)
         return res.status(401).json({ 
           error: 'Authentication required',
           redirect: '/login'
@@ -101,7 +86,6 @@ export const authMiddleware = {
 
       const userId = authMiddleware.verifyToken(token)
       if (!userId) {
-        console.log(`❌ Invalid token for admin check:`, token)
         return res.status(401).json({ 
           error: 'Invalid or expired session',
           redirect: '/login'
@@ -111,10 +95,7 @@ export const authMiddleware = {
       // Get user from database to check role
       const user = await userService.getById(userId)
       
-      console.log(`👤 Found user for admin check:`, user)
-      
       if (!user) {
-        console.log(`❌ User not found for admin check:`, userId)
         return res.status(401).json({ 
           error: 'User not found',
           redirect: '/login'
@@ -122,19 +103,16 @@ export const authMiddleware = {
       }
 
       if (user.userType !== 'admin') {
-        console.log(`❌ User is not admin:`, user.userType)
         return res.status(403).json({ 
           error: 'Admin access required',
           redirect: '/products'
         })
       }
 
-      console.log(`✅ Admin access granted for:`, user.email)
       req.user = user
       req.userId = userId
       next()
     } catch (err) {
-      console.error(`❌ Admin check error:`, err)
       return res.status(500).json({ 
         error: 'Authorization check failed',
         redirect: '/login'

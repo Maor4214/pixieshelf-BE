@@ -179,23 +179,17 @@ app.delete('/api/product/:id', authMiddleware.requireMember, async (req, res) =>
 // User Routes - Admin only
 app.post('/api/user', authMiddleware.requireAdmin, async (req, res) => {
   try {
-    console.log('📝 Creating user with data:', req.body)
-    
     const { email, password, userType } = req.body
     
     if (!email || !password || !userType) {
-      console.log('❌ Missing required fields')
       return res.status(400).json({ error: 'Missing required fields: email, password, userType' })
     }
     
     if (!['admin', 'regular'].includes(userType)) {
-      console.log('❌ Invalid user type:', userType)
       return res.status(400).json({ error: 'Invalid user type. Must be "admin" or "regular"' })
     }
     
-    console.log('✅ Validating user data...')
     const newUser = await userService.add({ email, password, userType })
-    console.log('✅ User created successfully:', newUser.email)
     res.status(201).send(newUser)
   } catch (err) {
     console.error('❌ Error creating user:', err)
@@ -257,13 +251,6 @@ if (!isProduction) {
     changeOrigin: true,
     ws: true, // Enable WebSocket proxy for HMR
     logLevel: 'debug',
-    onProxyReq: (proxyReq, req, res) => {
-      // Skip API routes
-      if (req.url.startsWith('/api')) {
-        return
-      }
-      console.log(`🔄 Proxying ${req.method} ${req.url} to Vite dev server`)
-    },
     onError: (err, req, res) => {
       console.error('❌ Proxy error:', err.message)
       res.status(500).send('Proxy error: Vite dev server might not be running')
@@ -272,7 +259,7 @@ if (!isProduction) {
 } else {
   // Catch-all for SPA routing (only in production)
   app.get('/*', (req, res) => {
-    res.sendFile(path.resolve('public/index.html'))
+    res.sendFile(path.join(__dirname, '../pixieshelf FE/dist/index.html'))
   })
 }
 
