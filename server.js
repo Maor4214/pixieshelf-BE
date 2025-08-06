@@ -1,6 +1,22 @@
 import dotenv from 'dotenv'
 dotenv.config({ override: true })
 
+
+
+// ADD THIS DEBUG SECTION:
+console.log('🔍 Environment Debug:')
+console.log('NODE_ENV:', process.env.NODE_ENV)
+console.log('RENDER:', process.env.RENDER)
+console.log('isProduction will be:', process.env.NODE_ENV === 'production')
+
+// Check if problematic packages exist
+try {
+  await import('http-proxy-middleware')
+  console.log('⚠️ http-proxy-middleware is installed (should not be in production)')
+} catch {
+  console.log('✅ http-proxy-middleware is NOT installed (good for production)')
+}
+
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
