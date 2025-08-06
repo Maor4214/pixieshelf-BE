@@ -248,16 +248,6 @@ if (isProduction) {
   proxyDev.setupProxy(app)
 }
 
-// Debugging all registered routes
-app._router.stack
-  .filter((r) => r.route)
-  .forEach((r) => {
-    console.log(
-      'Registered route:',
-      Object.keys(r.route.methods)[0].toUpperCase(),
-      r.route.path
-    )
-  })
 
 // Start server
 const port = process.env.PORT || 3035
