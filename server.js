@@ -244,8 +244,11 @@ if (isProduction) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'))
   })
 } else {
-  const proxyDev = await import('./proxy.dev.js')
-  proxyDev.setupProxy(app)
+  // Only use proxy in local development, not on Render
+  if (process.env.NODE_ENV !== 'production' && !process.env.RENDER) {
+    const proxyDev = await import('./proxy.dev.js')
+    proxyDev.setupProxy(app)
+  }
 }
 
 

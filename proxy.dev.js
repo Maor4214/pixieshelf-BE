@@ -1,15 +1,7 @@
 import { createProxyMiddleware } from 'http-proxy-middleware'
 
 export function setupProxy(app) {
-  // Skip API routes
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api/')) {
-      return next()
-    }
-    next()
-  })
-
-  // Proxy everything else to Vite dev server
+  // Simple proxy for development
   app.use(
     createProxyMiddleware({
       target: 'http://localhost:5173',
